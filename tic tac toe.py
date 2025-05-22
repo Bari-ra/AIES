@@ -1,36 +1,152 @@
 import math
+import time
+import copy
 
-def minimax(board, depth, is_maximizing_player, game_over_func, evaluate_function, get_available_moves_func, result_func):
-    """
-    Implements the Minimax algorithm for Tic-Tac-Toe.
+# Constants
+PLAYER = 'X'
+AI = 'O'
+EMPTY = ' '
 
-    Args:
-        board: The current game board state.
-        depth: The recursion depth (number of moves remaining).
-        is_maximizing_player: True if it's the maximizing player's turn, False otherwise.
-        game_over_func: A function that checks if the game is over.
-        evaluate_function: A function that evaluates the utility of a board state.
-        get_available_moves_func: A function that returns available moves.
-        result_func: A function that applies a move to the board.
+# Initialize board
+def create_board():
+    return [[EMPTY for _ in range(3)] for _ in range(3)]
 
-    Returns:
-        The best move for the current player.
-    """
+# Print the board
+def print_board(board):
+    for row in board:
+        print('|'.join(row))
+        print('-' * 5)
 
-    if game_over_func(board):
-        return evaluate_function(board)
+# Check for winner
+def check_winner(board, player):
+    for row in board:
+        if all([cell == player for cell in row]):
+            return True
+    for col in range(3):
+        if all([board[row][col] == player for row in range(3)]):
+            return True
+    if all([board[i][i] == player for i in range(3)]) or all([board[i][2-i] == player for i in range(3)]):
+        return True
+    return False
 
-    if is_maximizing_player:
-        best_score = float('-inf')
-        for move in get_available_moves_func(board):
-            new_board = result_func(board, move)
-            score = minimax(new_board, depth + 1, False, game_over_func, evaluate_function, get_available_moves_func, result_func)
+# Check for draw
+def is_draw(board):
+    return all(cell != EMPTY for row in board for cell in row)
+
+# Get available moves
+def get_available_moves(board):
+    return [(i, j) for i in range(3) for j in range(3) if board[i][j] == EMPTY]
+
+# Evaluate board
+def evaluate(board):
+    if check_winner(board, AI):
+        return 1
+    elif check_winner(board, PLAYER):
+        return -1
+    else:
+        return 0
+
+# Minimax Algorithm
+def minimax(board, is_maximizing):
+    if check_winner(board, AI) or check_winner(board, PLAYER) or is_draw(board):
+        return evaluate(board)
+
+    if is_maximizing:
+        best_score = -math.inf
+        for (i, j) in get_available_moves(board):
+            board[i][j] = AI
+            score = minimax(board, False)
+            board[i][j] = EMPTY
             best_score = max(score, best_score)
         return best_score
     else:
-        best_score = float('inf')
-        for move in get_available_moves_func(board):
-            new_board = result_func(board, move)
-            score = minimax(new_board, depth + 1, True, game_over_func, evaluate_function, get_available_moves_func, result_func)
+        best_score = math.inf
+        for (i, j) in get_available_moves(board):
+            board[i][j] = PLAYER
+            score = minimax(board, True)
+            board[i][j] = EMPTY
             best_score = min(score, best_score)
         return best_score
+
+# Minimax with Alpha-Beta Pruning
+def minimax_ab(board, is_maximizing, alpha, beta):
+    if check_winner(board, AI) or check_winner(board, PLAYER) or is_draw(board):
+        return evaluate(board)
+
+    if is_maximizing:
+        best_score = -math.inf
+        for (i, j) in get_available_moves(board):
+            board[i][j] = AI
+            score = minimax_ab(board, False, alpha, beta)
+            board[i][j] = EMPTY
+            best_score = max(score, best_score)
+            alpha = max(alpha, score)
+            if beta <= alpha:
+                break
+        return best_score
+    else:
+        best_score = math.inf
+        for (i, j) in get_available_moves(board):
+            board[i][j] = PLAYER
+            score = minimax_ab(board, True, alpha, beta)
+            board[i][j] = EMPTY
+            best_score = min(score, best_score)
+            beta = min(beta, score)
+            if beta <= alpha:
+                break
+        return best_score
+
+# AI move using Minimax
+def best_move_minimax(board):
+    best_score = -math.inf
+    move = None
+    for (i, j) in get_available_moves(board):
+        board[i][j] = AI
+        score = minimax(board, False)
+        board[i][j] = EMPTY
+        if score > best_score:
+            best_score = score
+            move = (i, j)
+    return move
+
+# AI move using Alpha-Beta Pruning
+def best_move_ab(board):
+    best_score = -math.inf
+    move = None
+    for (i, j) in get_available_moves(board):
+        board[i][j] = AI
+        score = minimax_ab(board, False, -math.inf, math.inf)
+        board[i][j] = EMPTY
+        if score > best_score:
+            best_score = score
+            move = (i, j)
+    return move
+
+# Compare performance
+def compare_performance():
+    board = create_board()
+    board[0][0] = PLAYER
+    board[1][1] = AI
+    board[0][1] = PLAYER
+
+    print("Initial Board:")
+    print_board(board)
+
+    board1 = copy.deepcopy(board)
+    start = time.time()
+    move1 = best_move_minimax(board1)
+    end = time.time()
+    print("\nMinimax chose move:", move1)
+    print("Time taken (Minimax):", round(end - start, 6), "seconds")
+
+    board2 = copy.deepcopy(board)
+    start = time.time()
+    move2 = best_move_ab(board2)
+    end = time.time()
+    print("\nAlpha-Beta Pruning chose move:", move2)
+    print("Time taken (Alpha-Beta):", round(end - start, 6), "seconds")
+
+# Run performance comparison
+if __name__ == "__main__":
+    compare_performance()
+
